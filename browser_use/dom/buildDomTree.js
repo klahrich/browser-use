@@ -163,7 +163,10 @@
         const hasInteractiveRole = interactiveElements.has(tagName) ||
             interactiveRoles.has(role) ||
             interactiveRoles.has(ariaRole) ||
-            tabIndex === '0';
+            tabIndex === '0' ||
+            // handle options within a select
+            ((tagName == 'option') && (element.parentElement.tagName.toLowerCase()=='select'))
+            ;
 
         if (hasInteractiveRole) return true;
 

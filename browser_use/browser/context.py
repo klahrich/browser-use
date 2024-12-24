@@ -96,14 +96,16 @@ class BrowserSession:
 class BrowserContext:
 	def __init__(
 		self,
-		browser: 'Browser',
+		#browser: 'Browser',
+		context:PlaywrightBrowserContext,
 		config: BrowserContextConfig = BrowserContextConfig(),
 	):
 		self.context_id = str(uuid.uuid4())
 		logger.debug(f'Initializing new browser context with id: {self.context_id}')
 
 		self.config = config
-		self.browser = browser
+		# self.browser = browser
+		self.context = context
 
 		# Initialize these as None - they'll be set up when needed
 		self.session: BrowserSession | None = None
@@ -150,9 +152,9 @@ class BrowserContext:
 		"""Initialize the browser session"""
 		logger.debug('Initializing browser context')
 
-		playwright_browser = await self.browser.get_playwright_browser()
-
-		context = await self._create_context(playwright_browser)
+		#playwright_browser = await self.browser.get_playwright_browser()
+		#context = await self._create_context(playwright_browser)
+		context = self.context
 		page = await context.new_page()
 
 		# Instead of calling _update_state(), create an empty initial state
@@ -427,7 +429,9 @@ class BrowserContext:
 
 		# Wait for page load
 		try:
-			await self._wait_for_stable_network()
+			#await self._wait_for_stable_network()
+			page = await self.get_current_page()
+			await page.wait_for_load_state('domcontentloaded')
 		except Exception:
 			logger.warning('Page load failed, continuing...')
 			pass
@@ -746,7 +750,7 @@ class BrowserContext:
 			if element is None:
 				raise Exception(f'Element: {repr(element_node)} not found')
 
-			await element.scroll_into_view_if_needed(timeout=2500)
+			await element.scroll_into_view_if_needed(timeout=10000)
 			await element.fill('')
 			await element.type(text)
 			await page.wait_for_load_state()
@@ -771,7 +775,7 @@ class BrowserContext:
 			# await element.scroll_into_view_if_needed()
 
 			try:
-				await element.click(timeout=2500)
+				await element.click(timeout=10000)
 				await page.wait_for_load_state()
 			except Exception:
 				try:

@@ -81,7 +81,17 @@ _[:] elements are just for more context, but not interactable.
 		time_str = self.current_date.strftime('%Y-%m-%d %H:%M')
 
 		AGENT_PROMPT = f"""
-You are an AI agent that helps users interact with websites. You receive a list of interactive elements from the current webpage and must respond with specific actions. Today's date is {time_str}.
+Today's date is {time_str}.
+
+You are an AI agent that interacts with utility websites. 
+Here are some concepts that are useful in that context:
+- you will be given a set of credentials to login, usually consisting of an email (or username) and a password.
+- each set of credentials can have one or multiple accounts attached to it, sometimes even up to dozens or hundreds of accounts.
+- each account usually has some metadata such as the account number, account name, and sometimes even account address.
+- an account can have a 'latest PDF', i.e. the latest utility bill/invoice, and the 'last 12 PDFs', i.e. the bils for up to the last 12 months
+- if there are multiple accounts for the credentials you are using, there will be a way to navigate the website to see them all.
+- IMPORTANT: the first time you encounter the list of accounts, before proceeding with the logic, save that list; this will be useful to know when the job is finished.
+- IMPORTANT: every time you navigate to an account's page, before proceeding with collecting one or more PDF bills/invoices for it, save that account information.
 
 INPUT FORMAT:
 {self.input_format()}
@@ -115,13 +125,18 @@ class AgentMessagePrompt:
 		self.include_attributes = include_attributes
 
 	def get_user_message(self) -> HumanMessage:
+		elements_str = self.state.element_tree.clickable_elements_to_string(include_attributes=self.include_attributes)
 		state_description = f"""
 Current url: {self.state.url}
 Available tabs:
 {self.state.tabs}
 Interactive elements:
-{self.state.element_tree.clickable_elements_to_string(include_attributes=self.include_attributes)}
+{elements_str}
         """
+
+		# u = input("Print state description?")
+		# if u.lower() == 'y':
+		# 	print(elements_str)
 
 		if self.result:
 			if self.result.extracted_content:

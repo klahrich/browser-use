@@ -96,7 +96,7 @@ class Agent:
 		self.system_prompt_class = system_prompt_class
 
 		# Telemetry setup
-		self.telemetry = ProductTelemetry()
+		# self.telemetry = ProductTelemetry()
 
 		# Action and output models setup
 		self._setup_action_models()
@@ -165,12 +165,13 @@ class Agent:
 			self._last_result = result
 
 			if result.error:
-				self.telemetry.capture(
-					AgentStepErrorTelemetryEvent(
-						agent_id=self.agent_id,
-						error=result.error,
-					)
-				)
+				# self.telemetry.capture(
+				# 	AgentStepErrorTelemetryEvent(
+				# 		agent_id=self.agent_id,
+				# 		error=result.error,
+				# 	)
+				# )
+				...
 			model_output = None
 		finally:
 			if state:
@@ -295,12 +296,12 @@ class Agent:
 		try:
 			logger.info(f'🚀 Starting task: {self.task}')
 
-			self.telemetry.capture(
-				AgentRunTelemetryEvent(
-					agent_id=self.agent_id,
-					task=self.task,
-				)
-			)
+			# self.telemetry.capture(
+			# 	AgentRunTelemetryEvent(
+			# 		agent_id=self.agent_id,
+			# 		task=self.task,
+			# 	)
+			# )
 
 			for step in range(max_steps):
 				if self._too_many_failures():
@@ -321,14 +322,14 @@ class Agent:
 			return self.history
 
 		finally:
-			self.telemetry.capture(
-				AgentEndTelemetryEvent(
-					agent_id=self.agent_id,
-					task=self.task,
-					success=self.history.is_done(),
-					steps=len(self.history.history),
-				)
-			)
+			# self.telemetry.capture(
+			# 	AgentEndTelemetryEvent(
+			# 		agent_id=self.agent_id,
+			# 		task=self.task,
+			# 		success=self.history.is_done(),
+			# 		steps=len(self.history.history),
+			# 	)
+			# )
 			if not self.injected_browser_context:
 				await self.browser_context.close()
 
