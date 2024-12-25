@@ -150,8 +150,8 @@
             'button', 'menu', 'menuitem', 'link', 'checkbox', 'radio',
             'slider', 'tab', 'tabpanel', 'textbox', 'combobox', 'grid',
             'listbox', 'option', 'progressbar', 'scrollbar', 'searchbox',
-            'switch', 'tree', 'treeitem', 'spinbutton', 'tooltip',
-            'menuitemcheckbox', 'menuitemradio'
+            'switch', 'tree', 'treeitem', 'spinbutton', 'tooltip', 'a-button-inner', 'a-dropdown-button', 'click',
+            'menuitemcheckbox', 'menuitemradio', 'a-button-text', 'button-text', 'button-icon', 'button-icon-only', 'button-text-icon-only', 'dropdown', 'combobox' 
         ]);
 
         const tagName = element.tagName.toLowerCase();
@@ -165,8 +165,10 @@
             interactiveRoles.has(ariaRole) ||
             tabIndex === '0' ||
             // handle options within a select
-            ((tagName == 'option') && (element.parentElement.tagName.toLowerCase()=='select'))
-            ;
+            ((tagName == 'option') && (element.parentElement.tagName.toLowerCase()=='select')) ||
+            (tabIndex !== null && tabIndex !== '-1') ||
+            element.getAttribute('data-action') === 'a-dropdown-select' ||
+            element.getAttribute('data-action') === 'a-dropdown-button';
 
         if (hasInteractiveRole) return true;
 

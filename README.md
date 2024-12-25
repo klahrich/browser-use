@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Discord](https://img.shields.io/discord/1303749220842340412?color=7289DA&label=Discord&logo=discord&logoColor=white)](https://link.browser-use.com/discord)
+[![Twitter Follow](https://img.shields.io/twitter/follow/gregpr07?style=social)](https://x.com/gregpr07)
 
 Make websites accessible for AI agents 🤖.
 
@@ -63,11 +64,6 @@ https://github.com/user-attachments/assets/171fb4d6-0355-46f2-863e-edb04a828d04
 </div>
 
 ![flight search 8x 10fps](https://github.com/user-attachments/assets/ea605d4a-90e6-481e-a569-f0e0db7e6390)
-
-<div style="font-size: 4em;">
-    Prompt: Solve the captcha. (2x speed)
-</div>
-<img src="https://github.com/MagMueller/examples-browser-use/blob/main/captcha/captcha%20big.gif" alt="Solving Captcha" style="max-width:300px;">
 
 <div style="font-size: 4em;">
     Prompt: Look up models with a license of cc-by-sa-4.0 and sort by most likes on Hugging face, save top 5 to file. (1x speed)

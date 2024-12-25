@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import io
 import json
 import logging
 import os
@@ -16,6 +18,7 @@ from langchain_core.messages import (
 	SystemMessage,
 )
 from openai import RateLimitError
+from PIL import Image, ImageDraw, ImageFont
 from pydantic import BaseModel, ValidationError
 
 from browser_use.agent.message_manager.service import MessageManager
@@ -26,13 +29,17 @@ from browser_use.agent.views import (
 	AgentHistory,
 	AgentHistoryList,
 	AgentOutput,
+	AgentStepInfo,
 )
 from browser_use.browser.browser import Browser
 from browser_use.browser.context import BrowserContext
 from browser_use.browser.views import BrowserState, BrowserStateHistory
 from browser_use.controller.registry.views import ActionModel
 from browser_use.controller.service import Controller
-from browser_use.dom.history_tree_processor import DOMHistoryElement, HistoryTreeProcessor
+from browser_use.dom.history_tree_processor.service import (
+	DOMHistoryElement,
+	HistoryTreeProcessor,
+)
 from browser_use.telemetry.service import ProductTelemetry
 from browser_use.telemetry.views import (
 	AgentEndTelemetryEvent,
@@ -62,8 +69,20 @@ class Agent:
 		system_prompt_class: Type[SystemPrompt] = SystemPrompt,
 		max_input_tokens: int = 128000,
 		validate_output: bool = False,
-		include_attributes: list[str] = [],
+		include_attributes: list[str] = [
+			'title',
+			'type',
+			'name',
+			'role',
+			'tabindex',
+			'aria-label',
+			'placeholder',
+			'value',
+			'alt',
+			'aria-expanded',
+		],
 		max_error_length: int = 400,
+		max_actions_per_step: int = 10,
 	):
 		self.agent_id = str(uuid.uuid4())  # unique identifier for the agent
 
@@ -72,9 +91,11 @@ class Agent:
 		self.llm = llm
 		self.save_conversation_path = save_conversation_path
 		self._last_result = None
-
+		self.include_attributes = include_attributes
+		self.max_error_length = max_error_length
 		# Controller setup
 		self.controller = controller
+		self.max_actions_per_step = max_actions_per_step
 
 		# Browser setup
 		self.injected_browser = browser is not None
@@ -87,7 +108,9 @@ class Agent:
 		if browser_context:
 			self.browser_context = browser_context
 		elif self.browser:
-			self.browser_context = BrowserContext(browser=self.browser)
+			self.browser_context = BrowserContext(
+				browser=self.browser, config=self.browser.config.new_context_config
+			)
 		else:
 			# If neither is provided, create both new
 			self.browser = Browser()
@@ -103,9 +126,6 @@ class Agent:
 
 		self.max_input_tokens = max_input_tokens
 
-		self.include_attributes = include_attributes
-		self.max_error_length = max_error_length
-
 		self.message_manager = MessageManager(
 			llm=self.llm,
 			task=self.task,
@@ -114,6 +134,7 @@ class Agent:
 			max_input_tokens=self.max_input_tokens,
 			include_attributes=self.include_attributes,
 			max_error_length=self.max_error_length,
+			max_actions_per_step=self.max_actions_per_step,
 		)
 
 		# Tracking variables
@@ -138,15 +159,16 @@ class Agent:
 		self.AgentOutput = AgentOutput.type_with_custom_actions(self.ActionModel)
 
 	@time_execution_async('--step')
-	async def step(self) -> None:
+	async def step(self, step_info: Optional[AgentStepInfo] = None) -> None:
 		"""Execute one step of the task"""
 		logger.info(f'\n📍 Step {self.n_steps}')
 		state = None
 		model_output = None
+		result: list[ActionResult] = []
 
 		try:
 			state = await self.browser_context.get_state(use_vision=self.use_vision)
-			self.message_manager.add_state_message(state, self._last_result)
+			self.message_manager.add_state_message(state, self._last_result, step_info)
 			input_messages = self.message_manager.get_messages()
 
 			u = input('Print messages?')
@@ -160,13 +182,13 @@ class Agent:
 			self.message_manager._remove_last_state_message()  # we dont want the whole state in the chat history
 			self.message_manager.add_model_output(model_output)
 
-			result = await self.controller.act(model_output.action, self.browser_context)
+			result: list[ActionResult] = await self.controller.multi_act(
+				model_output.action, self.browser_context
+			)
 			self._last_result = result
 
-			if result.extracted_content:
-				logger.info(f'📄 Result: {result.extracted_content}')
-			if result.is_done:
-				logger.result(f'{result.extracted_content}')  # type: ignore
+			if len(result) > 0 and result[-1].is_done:
+				logger.info(f'📄 Result: {result[-1].extracted_content}')
 
 			self.consecutive_failures = 0
 
@@ -174,22 +196,24 @@ class Agent:
 			result = self._handle_step_error(e)
 			self._last_result = result
 
-			if result.error:
-				# self.telemetry.capture(
-				# 	AgentStepErrorTelemetryEvent(
-				# 		agent_id=self.agent_id,
-				# 		error=result.error,
-				# 	)
-				# )
-				...
-			model_output = None
 		finally:
+			if not result:
+				return
+			for r in result:
+				if r.error:
+					self.telemetry.capture(
+						AgentStepErrorTelemetryEvent(
+							agent_id=self.agent_id,
+							error=r.error,
+						)
+					)
 			if state:
 				self._make_history_item(model_output, state, result)
 
-	def _handle_step_error(self, error: Exception) -> ActionResult:
+	def _handle_step_error(self, error: Exception) -> list[ActionResult]:
 		"""Handle all types of errors that can occur during a step"""
-		error_msg = AgentError.format_error(error, include_trace=True)
+		include_trace = logger.isEnabledFor(logging.DEBUG)
+		error_msg = AgentError.format_error(error, include_trace=include_trace)
 		prefix = f'❌ Result failed {self.consecutive_failures + 1}/{self.max_failures} times:\n '
 
 		if isinstance(error, (ValidationError, ValueError)):
@@ -210,27 +234,30 @@ class Agent:
 			logger.error(f'{prefix}{error_msg}')
 			self.consecutive_failures += 1
 
-		return ActionResult(error=error_msg, include_in_memory=True)
+		return [ActionResult(error=error_msg, include_in_memory=True)]
 
 	def _make_history_item(
 		self,
 		model_output: AgentOutput | None,
 		state: BrowserState,
-		result: ActionResult,
+		result: list[ActionResult],
 	) -> None:
 		"""Create and store history item"""
+		interacted_element = None
+		len_result = len(result)
+
 		if model_output:
-			interacted_element = AgentHistory.get_interacted_element(
+			interacted_elements = AgentHistory.get_interacted_element(
 				model_output, state.selector_map
 			)
 		else:
-			interacted_element = None
+			interacted_elements = [None]
 
 		state_history = BrowserStateHistory(
 			url=state.url,
 			title=state.title,
 			tabs=state.tabs,
-			interacted_element=interacted_element,
+			interacted_element=interacted_elements,
 			screenshot=state.screenshot,
 		)
 
@@ -246,25 +273,29 @@ class Agent:
 		response: dict[str, Any] = await structured_llm.ainvoke(input_messages)  # type: ignore
 
 		parsed: AgentOutput = response['parsed']
-
+		# cut the number of actions to max_actions_per_step
+		parsed.action = parsed.action[: self.max_actions_per_step]
 		self._log_response(parsed)
 		self.n_steps += 1
 
 		return parsed
 
-	def _log_response(self, response: Any) -> None:
+	def _log_response(self, response: AgentOutput) -> None:
 		"""Log the model's response"""
-		if 'Success' in response.current_state.valuation_previous_goal:
+		if 'Success' in response.current_state.evaluation_previous_goal:
 			emoji = '👍'
-		elif 'Failed' in response.current_state.valuation_previous_goal:
-			emoji = '⚠️'
+		elif 'Failed' in response.current_state.evaluation_previous_goal:
+			emoji = '⚠'
 		else:
 			emoji = '🤷'
 
-		logger.info(f'{emoji} Evaluation: {response.current_state.valuation_previous_goal}')
+		logger.info(f'{emoji} Eval: {response.current_state.evaluation_previous_goal}')
 		logger.info(f'🧠 Memory: {response.current_state.memory}')
-		logger.info(f'🎯 Next Goal: {response.current_state.next_goal}')
-		logger.info(f'🛠️ Action: {response.action.model_dump_json(exclude_unset=True)}')
+		logger.info(f'🎯 Next goal: {response.current_state.next_goal}')
+		for i, action in enumerate(response.action):
+			logger.info(
+				f'🛠️  Action {i + 1}/{len(response.action)}: {action.model_dump_json(exclude_unset=True)}'
+			)
 
 	def _save_conversation(self, input_messages: list[BaseMessage], response: Any) -> None:
 		"""Save conversation history to file if path is specified"""
@@ -320,7 +351,9 @@ class Agent:
 				await self.step()
 
 				if self.history.is_done():
-					if self.validate_output:
+					if (
+						self.validate_output and step < max_steps - 1
+					):  # if last step, we dont need to validate
 						if not await self._validate_output():
 							continue
 
@@ -358,15 +391,16 @@ class Agent:
 		system_msg = (
 			f'You are a validator of an agent who interacts with a browser. '
 			f'Validate if the output of last action is what the user wanted and if the task is completed. '
-			f'If the task is unclear defined, you can let it pass. '
-			f'Task: {self.task}. Return a JSON object with 2 keys: is_valid and reason. '
+			f'If the task is unclear defined, you can let it pass. But if something is missing or the image does not show what was requested dont let it pass. '
+			f'Try to understand the page and help the model with suggestions like scroll, do x, ... to get the solution right. '
+			f'Task to validate: {self.task}. Return a JSON object with 2 keys: is_valid and reason. '
 			f'is_valid is a boolean that indicates if the output is correct. '
 			f'reason is a string that explains why it is valid or not.'
 			f' example: {{"is_valid": false, "reason": "The user wanted to search for "cat photos", but the agent searched for "dog photos" instead."}}'
 		)
 
 		if self.browser_context.session:
-			state = self.browser_context.session.cached_state
+			state = await self.browser_context.get_state(use_vision=self.use_vision)
 			content = AgentMessagePrompt(
 				state=state,
 				result=self._last_result,
@@ -389,7 +423,7 @@ class Agent:
 		if not is_valid:
 			logger.info(f'❌ Validator decision: {parsed.reason}')
 			msg = f'The ouput is not yet correct. {parsed.reason}.'
-			self._last_result = ActionResult(extracted_content=msg, include_in_memory=True)
+			self._last_result = [ActionResult(extracted_content=msg, include_in_memory=True)]
 		else:
 			logger.info(f'✅ Validator decision: {parsed.reason}')
 		return is_valid
@@ -405,13 +439,13 @@ class Agent:
 		Rerun a saved history of actions with error handling and retry logic.
 
 		Args:
-			history: The history to replay
-			max_retries: Maximum number of retries per action
-			skip_failures: Whether to skip failed actions or stop execution
-			delay_between_actions: Delay between actions in seconds
+		        history: The history to replay
+		        max_retries: Maximum number of retries per action
+		        skip_failures: Whether to skip failed actions or stop execution
+		        delay_between_actions: Delay between actions in seconds
 
 		Returns:
-			List of action results
+		        List of action results
 		"""
 		results = []
 
@@ -423,7 +457,11 @@ class Agent:
 			)
 			logger.info(f'Replaying step {i + 1}/{len(history.history)}: goal: {goal}')
 
-			if not history_item.model_output or not history_item.model_output.action:
+			if (
+				not history_item.model_output
+				or not history_item.model_output.action
+				or history_item.model_output.action == [None]
+			):
 				logger.warning(f'Step {i + 1}: No action to replay, skipping')
 				results.append(ActionResult(error='No action to replay'))
 				continue
@@ -432,7 +470,7 @@ class Agent:
 			while retry_count < max_retries:
 				try:
 					result = await self._execute_history_step(history_item, delay_between_actions)
-					results.append(result)
+					results.extend(result)
 					break
 
 				except Exception as e:
@@ -451,21 +489,28 @@ class Agent:
 
 		return results
 
-	async def _execute_history_step(self, history_item: AgentHistory, delay: float) -> ActionResult:
+	async def _execute_history_step(
+		self, history_item: AgentHistory, delay: float
+	) -> list[ActionResult]:
 		"""Execute a single step from history with element validation"""
 
 		state = await self.browser_context.get_state()
 		if not state or not history_item.model_output:
 			raise ValueError('Invalid state or model output')
+		updated_actions = []
+		for i, action in enumerate(history_item.model_output.action):
+			updated_action = await self._update_action_indices(
+				history_item.state.interacted_element[i],
+				action,
+				state,
+			)
+			updated_actions.append(updated_action)
 
-		updated_action = await self._update_action_indices(
-			history_item.state.interacted_element, history_item.model_output.action, state
-		)
+			if updated_action is None:
+				raise ValueError(f'Could not find matching element {i} in current page')
 
-		if updated_action is None:
-			raise ValueError('Could not find matching element in current page')
+		result = await self.controller.multi_act(updated_actions, self.browser_context)
 
-		result = await self.controller.act(updated_action, self.browser_context)
 		await asyncio.sleep(delay)
 		return result
 
@@ -488,6 +533,7 @@ class Agent:
 
 		if not current_element or current_element.highlight_index is None:
 			return None
+
 		old_index = action.get_index()
 		if old_index != current_element.highlight_index:
 			action.set_index(current_element.highlight_index)
@@ -498,23 +544,18 @@ class Agent:
 		return action
 
 	async def load_and_rerun(
-		self, history_file: Optional[str | Path] = None, k: Optional[int] = None, **kwargs
+		self, history_file: Optional[str | Path] = None, **kwargs
 	) -> list[ActionResult]:
 		"""
 		Load history from file and rerun it.
 
 		Args:
-			history_file: Path to the history file
-			**kwargs: Additional arguments passed to rerun_history
-			history_file: Path to the history file
-			k: Number of steps to rerun
-			**kwargs: Additional arguments passed to rerun_history
+		        history_file: Path to the history file
+		        **kwargs: Additional arguments passed to rerun_history
 		"""
 		if not history_file:
 			history_file = 'AgentHistory.json'
 		history = AgentHistoryList.load_from_file(history_file, self.AgentOutput)
-		if k:
-			history.history = history.history[:k]
 		return await self.rerun_history(history, **kwargs)
 
 	def save_history(self, file_path: Optional[str | Path] = None) -> None:
@@ -522,3 +563,296 @@ class Agent:
 		if not file_path:
 			file_path = 'AgentHistory.json'
 		self.history.save_to_file(file_path)
+
+	def create_history_gif(
+		self,
+		output_path: str = 'agent_history.gif',
+		duration: int = 3000,
+		show_goals: bool = True,
+		show_task: bool = True,
+		show_logo: bool = True,
+		font_size: int = 40,
+		title_font_size: int = 56,
+		goal_font_size: int = 44,
+		margin: int = 40,
+		line_spacing: float = 1.5,
+	) -> None:
+		"""Create a GIF from the agent's history with overlaid task and goal text."""
+		if not self.history.history:
+			logger.warning('No history to create GIF from')
+			return
+
+		images = []
+
+		# Try to load nicer fonts
+		try:
+			# Try different font options in order of preference
+			font_options = ['Helvetica', 'Arial', 'DejaVuSans', 'Verdana']
+			font_loaded = False
+
+			for font_name in font_options:
+				try:
+					regular_font = ImageFont.truetype(font_name, font_size)
+					title_font = ImageFont.truetype(font_name, title_font_size)
+					goal_font = ImageFont.truetype(font_name, goal_font_size)
+					font_loaded = True
+					break
+				except OSError:
+					continue
+
+			if not font_loaded:
+				raise OSError('No preferred fonts found')
+
+		except OSError:
+			regular_font = ImageFont.load_default()
+			title_font = ImageFont.load_default()
+
+			goal_font = regular_font
+
+		# Load logo if requested
+		logo = None
+		if show_logo:
+			try:
+				logo = Image.open('./static/browser-use.png')
+				# Resize logo to be small (e.g., 40px height)
+				logo_height = 50
+				aspect_ratio = logo.width / logo.height
+				logo_width = int(logo_height * aspect_ratio)
+				logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
+			except Exception as e:
+				logger.warning(f'Could not load logo: {e}')
+
+		# Create task frame if requested
+		if show_task and self.task:
+			task_frame = self._create_task_frame(
+				self.task,
+				self.history.history[0].state.screenshot,
+				title_font,
+				regular_font,
+				logo,
+				line_spacing,
+			)
+			images.append(task_frame)
+
+		# Process each history item
+		for i, item in enumerate(self.history.history, 1):
+			if not item.state.screenshot:
+				continue
+
+			# Convert base64 screenshot to PIL Image
+			img_data = base64.b64decode(item.state.screenshot)
+			image = Image.open(io.BytesIO(img_data))
+
+			if show_goals and item.model_output:
+				image = self._add_overlay_to_image(
+					image=image,
+					step_number=i,
+					goal_text=item.model_output.current_state.next_goal,
+					regular_font=regular_font,
+					title_font=title_font,
+					margin=margin,
+					logo=logo,
+				)
+
+			images.append(image)
+
+		if images:
+			# Save the GIF
+			images[0].save(
+				output_path,
+				save_all=True,
+				append_images=images[1:],
+				duration=duration,
+				loop=0,
+				optimize=False,
+			)
+			logger.info(f'Created history GIF at {output_path}')
+		else:
+			logger.warning('No images found in history to create GIF')
+
+	def _create_task_frame(
+		self,
+		task: str,
+		first_screenshot: str,
+		title_font: ImageFont.FreeTypeFont,
+		regular_font: ImageFont.FreeTypeFont,
+		logo: Optional[Image.Image] = None,
+		line_spacing: float = 1.5,
+	) -> Image.Image:
+		"""Create initial frame showing the task."""
+		img_data = base64.b64decode(first_screenshot)
+		template = Image.open(io.BytesIO(img_data))
+		image = Image.new('RGB', template.size, (0, 0, 0))
+		draw = ImageDraw.Draw(image)
+
+		# Calculate vertical center of image
+		center_y = image.height // 2
+
+		# Draw "Task:" title
+		title = 'Task:'
+		title_bbox = draw.textbbox((0, 0), title, font=title_font)
+		title_width = title_bbox[2] - title_bbox[0]
+		title_x = (image.width - title_width) // 2
+		title_y = center_y - 150  # Increased spacing from center
+
+		draw.text(
+			(title_x, title_y),
+			title,
+			font=title_font,
+			fill=(255, 255, 255),
+		)
+
+		# Draw task text with increased spacing
+		margin = 80  # Increased margin
+		max_width = image.width - (2 * margin)
+		wrapped_text = self._wrap_text(task, regular_font, max_width)
+
+		# Calculate line height with spacing
+		line_height = regular_font.size * line_spacing
+
+		# Split text into lines and draw with custom spacing
+		lines = wrapped_text.split('\n')
+		total_height = line_height * len(lines)
+
+		# Start position for first line
+		text_y = center_y - (total_height / 2) + 50  # Shifted down slightly
+
+		for line in lines:
+			# Get line width for centering
+			line_bbox = draw.textbbox((0, 0), line, font=regular_font)
+			text_x = (image.width - (line_bbox[2] - line_bbox[0])) // 2
+
+			draw.text(
+				(text_x, text_y),
+				line,
+				font=regular_font,
+				fill=(255, 255, 255),
+			)
+			text_y += line_height
+
+		# Add logo if provided (top right corner)
+		if logo:
+			logo_margin = 20
+			logo_x = image.width - logo.width - logo_margin
+
+			image.paste(logo, (logo_x, logo_margin), logo if logo.mode == 'RGBA' else None)
+
+		return image
+
+	def _add_overlay_to_image(
+		self,
+		image: Image.Image,
+		step_number: int,
+		goal_text: str,
+		regular_font: ImageFont.FreeTypeFont,
+		title_font: ImageFont.FreeTypeFont,
+		margin: int,
+		logo: Optional[Image.Image] = None,
+	) -> Image.Image:
+		"""Add step number and goal overlay to an image."""
+		image = image.convert('RGBA')
+		txt_layer = Image.new('RGBA', image.size, (0, 0, 0, 0))
+		draw = ImageDraw.Draw(txt_layer)
+
+		# Add step number (bottom left)
+		step_text = str(step_number)
+		step_bbox = draw.textbbox((0, 0), step_text, font=title_font)
+		step_width = step_bbox[2] - step_bbox[0]
+		step_height = step_bbox[3] - step_bbox[1]
+
+		# Position step number in bottom left
+		x_step = margin + 10  # Slight additional offset from edge
+		y_step = image.height - margin - step_height - 10  # Slight offset from bottom
+
+		# Draw background for step number with larger padding
+		padding = 20  # Increased padding
+		step_bg_bbox = (
+			x_step - padding,
+			y_step - padding,
+			x_step + step_width + padding,
+			y_step + step_height + padding,
+		)
+		draw.rectangle(step_bg_bbox, fill=(0, 0, 0, 255))
+
+		# Draw step number
+		draw.text(
+			(x_step, y_step),
+			step_text,
+			font=title_font,
+			fill=(255, 255, 255, 255),
+		)
+
+		# Draw goal text (centered, bottom)
+		max_width = image.width - (4 * margin)
+		wrapped_goal = self._wrap_text(goal_text, title_font, max_width)
+		goal_bbox = draw.multiline_textbbox((0, 0), wrapped_goal, font=title_font)
+		goal_width = goal_bbox[2] - goal_bbox[0]
+		goal_height = goal_bbox[3] - goal_bbox[1]
+
+		# Center goal text horizontally, place above step number
+		x_goal = (image.width - goal_width) // 2
+		y_goal = y_step - goal_height - padding * 4  # More space between step and goal
+
+		# Draw background for goal with larger padding
+		padding_goal = 25  # Increased padding for goal
+		goal_bg_bbox = (
+			x_goal - padding_goal,
+			y_goal - padding_goal,
+			x_goal + goal_width + padding_goal,
+			y_goal + goal_height + padding_goal,
+		)
+		draw.rectangle(goal_bg_bbox, fill=(0, 0, 0, 255))
+
+		# Draw goal text
+		draw.multiline_text(
+			(x_goal, y_goal),
+			wrapped_goal,
+			font=title_font,
+			fill=(255, 255, 255, 255),
+			align='center',
+		)
+
+		# Add logo if provided (top right corner)
+		if logo:
+			logo_layer = Image.new('RGBA', image.size, (0, 0, 0, 0))
+			logo_margin = 20
+			logo_x = image.width - logo.width - logo_margin
+			logo_layer.paste(logo, (logo_x, logo_margin), logo if logo.mode == 'RGBA' else None)
+			txt_layer = Image.alpha_composite(logo_layer, txt_layer)
+
+		# Composite and convert
+		result = Image.alpha_composite(image, txt_layer)
+		return result.convert('RGB')
+
+	def _wrap_text(self, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> str:
+		"""
+		Wrap text to fit within a given width.
+
+		Args:
+			text: Text to wrap
+			font: Font to use for text
+			max_width: Maximum width in pixels
+
+		Returns:
+			Wrapped text with newlines
+		"""
+		words = text.split()
+		lines = []
+		current_line = []
+
+		for word in words:
+			current_line.append(word)
+			line = ' '.join(current_line)
+			bbox = font.getbbox(line)
+			if bbox[2] > max_width:
+				if len(current_line) == 1:
+					lines.append(current_line.pop())
+				else:
+					current_line.pop()
+					lines.append(' '.join(current_line))
+					current_line = [word]
+
+		if current_line:
+			lines.append(' '.join(current_line))
+
+		return '\n'.join(lines)
