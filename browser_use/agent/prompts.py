@@ -162,9 +162,7 @@ class AgentMessagePrompt:
 		self.step_info = step_info
 
 	def get_user_message(self) -> HumanMessage:
-<<<<<<< HEAD
 		elements_str = self.state.element_tree.clickable_elements_to_string(include_attributes=self.include_attributes)
-=======
 		if self.step_info:
 			step_info_description = (
 				f'Current step: {self.step_info.step_number + 1}/{self.step_info.max_steps}'
@@ -172,7 +170,6 @@ class AgentMessagePrompt:
 		else:
 			step_info_description = ''
 
->>>>>>> upstream/main
 		state_description = f"""
 {step_info_description}
 Current url: {self.state.url}
