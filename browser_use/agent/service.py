@@ -127,6 +127,9 @@ class Agent:
 		if save_conversation_path:
 			logger.info(f'Saving conversation to {save_conversation_path}')
 
+	def update_lt_memory(self, key:str, description:str, value):
+		self.message_manager.update_lt_memory(key, description, value)
+
 	def _setup_action_models(self) -> None:
 		"""Setup dynamic action models from controller's registry"""
 		# Get the dynamic action model from controller's registry
@@ -145,6 +148,13 @@ class Agent:
 			state = await self.browser_context.get_state(use_vision=self.use_vision)
 			self.message_manager.add_state_message(state, self._last_result)
 			input_messages = self.message_manager.get_messages()
+
+			u = input('Print messages?')
+			if u.lower() == 'y':
+				MessageManager.print_messages(input_messages)
+
+			input('Press any key to continue...\n')
+
 			model_output = await self.get_next_action(input_messages)
 			self._save_conversation(input_messages, model_output)
 			self.message_manager._remove_last_state_message()  # we dont want the whole state in the chat history
