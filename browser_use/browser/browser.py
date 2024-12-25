@@ -38,7 +38,7 @@ class BrowserConfig:
 
 		chrome_instance_path: None
 			Path to a Chrome instance to use to connect to your normal browser
-			e.g. '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome'
+			e.g. '/Applications/Google/Chrome.app/Contents/MacOS/Google/Chrome'
 	"""
 
 	headless: bool = False
