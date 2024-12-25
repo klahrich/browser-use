@@ -83,6 +83,7 @@ class Agent:
 		],
 		max_error_length: int = 400,
 		max_actions_per_step: int = 10,
+		verbose:int = 0
 	):
 		self.agent_id = str(uuid.uuid4())  # unique identifier for the agent
 
@@ -145,6 +146,8 @@ class Agent:
 		self.retry_delay = retry_delay
 		self.validate_output = validate_output
 
+		self.verbose = verbose
+
 		if save_conversation_path:
 			logger.info(f'Saving conversation to {save_conversation_path}')
 
@@ -171,11 +174,10 @@ class Agent:
 			self.message_manager.add_state_message(state, self._last_result, step_info)
 			input_messages = self.message_manager.get_messages()
 
-			u = input('Print messages?')
-			if u.lower() == 'y':
-				MessageManager.print_messages(input_messages)
-
-			input('Press any key to continue...\n')
+			if self.verbose >= 2:
+				u = input('Print messages?')
+				if u.lower() == 'y':
+					MessageManager.print_messages(input_messages)
 
 			model_output = await self.get_next_action(input_messages)
 			self._save_conversation(input_messages, model_output)
