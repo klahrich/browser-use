@@ -199,14 +199,14 @@ class Agent:
 		finally:
 			if not result:
 				return
-			for r in result:
-				if r.error:
-					self.telemetry.capture(
-						AgentStepErrorTelemetryEvent(
-							agent_id=self.agent_id,
-							error=r.error,
-						)
-					)
+			# for r in result:
+			# 	if r.error:
+			# 		self.telemetry.capture(
+			# 			AgentStepErrorTelemetryEvent(
+			# 				agent_id=self.agent_id,
+			# 				error=r.error,
+			# 			)
+			# 		)
 			if state:
 				self._make_history_item(model_output, state, result)
 
