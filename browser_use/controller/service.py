@@ -31,6 +31,15 @@ class Controller:
 		self.registry = Registry()
 		self._register_default_actions()
 
+	def set_agent(self, agent:Agent):
+		self.agent = agent
+
+	def update_lt_memory(self, key:str, description:str, value):
+		self.agent.update_lt_memory(key, description, value)
+
+	def append_lt_memory(self, key:str, description:str, value):
+		self.agent.append_lt_memory(key, description, value)
+
 	def _register_default_actions(self):
 		"""Register all default browser actions"""
 
