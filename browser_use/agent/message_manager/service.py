@@ -65,6 +65,16 @@ class MessageManager:
 			'value': value
 		}
 
+	def append_lt_memory(self, key:str, description:str, value):
+		if key in self.lt_memory:
+			assert isinstance(self.lt_memory[key]['value'], list)
+			self.lt_memory[key]['value'].append(value)
+		else:
+			self.lt_memory[key] = {
+				'description': description,
+				'value': [value]
+			}
+
 	def get_lt_memory(self) -> BaseMessage|None:
 		if len(self.lt_memory) > 0:
 			return BaseMessage(

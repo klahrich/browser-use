@@ -154,6 +154,9 @@ class Agent:
 	def update_lt_memory(self, key:str, description:str, value):
 		self.message_manager.update_lt_memory(key, description, value)
 
+	def append_lt_memory(self, key:str, description:str, value):
+		self.message_manager.append_lt_memory(key, description ,value)
+
 	def _setup_action_models(self) -> None:
 		"""Setup dynamic action models from controller's registry"""
 		# Get the dynamic action model from controller's registry
