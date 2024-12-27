@@ -96,6 +96,7 @@ class Agent:
 		self.max_error_length = max_error_length
 		# Controller setup
 		self.controller = controller
+		self.controller.set_agent(self)
 		self.max_actions_per_step = max_actions_per_step
 
 		# Browser setup
