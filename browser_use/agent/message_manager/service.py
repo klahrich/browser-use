@@ -77,9 +77,8 @@ class MessageManager:
 
 	def get_lt_memory(self) -> BaseMessage|None:
 		if len(self.lt_memory) > 0:
-			return BaseMessage(
-				content = [f"{d['description']}: {d['value']}" for d in self.lt_memory.values()],
-				type='lt-memory'
+			return HumanMessage(
+				content = "\n".join([f"{d['description']}: {d['value']}" for d in self.lt_memory.values()])
 			)
 		return None
 
