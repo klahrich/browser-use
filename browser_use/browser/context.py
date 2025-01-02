@@ -174,7 +174,7 @@ class BrowserContext:
 		#playwright_browser = await self.browser.get_playwright_browser()
 		#context = await self._create_context(playwright_browser)
 		context = self.context
-		page = await context.new_page()
+		page = context.page
 
 		# Instead of calling _update_state(), create an empty initial state
 		initial_state = BrowserState(
