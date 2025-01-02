@@ -115,7 +115,8 @@ class BrowserContext:
 
 		self.config = config
 		# self.browser = browser
-		self.context = context
+		self.playwright_service = context
+		self.context = context.context
 
 		# Initialize these as None - they'll be set up when needed
 		self.session: BrowserSession | None = None
