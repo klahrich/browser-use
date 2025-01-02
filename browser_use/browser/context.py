@@ -176,7 +176,10 @@ class BrowserContext:
 		#context = await self._create_context(playwright_browser)
 		context = self.context
 
-		page = context.page
+		try:
+			page = self.playwright_service.page
+		except AttributeError:
+			page = await context.new_page()
 
 		# Instead of calling _update_state(), create an empty initial state
 		initial_state = BrowserState(
