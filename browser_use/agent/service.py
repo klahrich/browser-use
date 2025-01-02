@@ -338,7 +338,7 @@ class Agent:
 		f.write(' RESPONSE\n')
 		f.write(json.dumps(json.loads(response.model_dump_json(exclude_unset=True)), indent=2))
 
-	async def run(self, max_steps: int = 100) -> AgentHistoryList:
+	async def run(self, max_steps: int = 100, close_after_completing=True) -> AgentHistoryList:
 		"""Execute the task with maximum number of steps"""
 		try:
 			logger.info(f'🚀 Starting task: {self.task}')
@@ -379,10 +379,10 @@ class Agent:
 			# 		steps=len(self.history.history),
 			# 	)
 			# )
-			if not self.injected_browser_context:
+			if not self.injected_browser_context and close_after_completing:
 				await self.browser_context.close()
 
-			if not self.injected_browser and self.browser:
+			if not self.injected_browser and self.browser and close_after_completing:
 				await self.browser.close()
 
 	def _too_many_failures(self) -> bool:
