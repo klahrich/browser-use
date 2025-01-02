@@ -107,7 +107,7 @@ class BrowserContext:
 	def __init__(
 		self,
 		#browser: 'Browser',
-		context:PlaywrightBrowserContext,
+		context,
 		config: BrowserContextConfig = BrowserContextConfig(),
 	):
 		self.context_id = str(uuid.uuid4())
@@ -115,8 +115,8 @@ class BrowserContext:
 
 		self.config = config
 		# self.browser = browser
-		self.playwright_service = context
 		self.context = context.context
+		self.playwright_service = context
 
 		# Initialize these as None - they'll be set up when needed
 		self.session: BrowserSession | None = None
