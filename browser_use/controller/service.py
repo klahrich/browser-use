@@ -186,9 +186,12 @@ class Controller:
 			logger.info(msg)
 			return ActionResult(extracted_content=msg)
 
-		#@self.registry.action('Complete task', param_model=DoneAction)
-		#async def done(params: DoneAction):
-		#	return ActionResult(is_done=True, extracted_content=params.text)
+		# TODO: This needs to be overwritten in order to have contorll over exiting the appliction
+		# Leaving it here as an example, but need to implement unique one in your controller
+
+		'''@self.registry.action('Complete task', param_model=DoneAction)
+		async def done(params: DoneAction):
+			return ActionResult(is_done=True, extracted_content=params.text)'''
 
 		@self.registry.action(
 			'Scroll down the page by pixel amount - if no amount is specified, scroll down one page',
