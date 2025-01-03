@@ -186,9 +186,9 @@ class Controller:
 			logger.info(msg)
 			return ActionResult(extracted_content=msg)
 
-		@self.registry.action('Complete task', param_model=DoneAction)
-		async def done(params: DoneAction):
-			return ActionResult(is_done=True, extracted_content=params.text)
+		#@self.registry.action('Complete task', param_model=DoneAction)
+		#async def done(params: DoneAction):
+		#	return ActionResult(is_done=True, extracted_content=params.text)
 
 		@self.registry.action(
 			'Scroll down the page by pixel amount - if no amount is specified, scroll down one page',
