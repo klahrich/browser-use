@@ -150,7 +150,8 @@ class BrowserContext:
 					logger.debug(f'Failed to stop tracing: {e}')
 
 			try:
-				await self.session.context.close()
+				pass
+				#await self.session.context.close()
 			except Exception as e:
 				logger.debug(f'Failed to close context: {e}')
 		finally:
@@ -163,7 +164,8 @@ class BrowserContext:
 			try:
 				# Use sync Playwright method for force cleanup
 				if hasattr(self.session.context, '_impl_obj'):
-					asyncio.run(self.session.context._impl_obj.close())
+					#asyncio.run(self.session.context._impl_obj.close())
+					pass
 				self.session = None
 			except Exception as e:
 				logger.warning(f'Failed to force close browser context: {e}')
