@@ -75,17 +75,6 @@ class Controller:
 			msg = '🔙  Navigated back'
 			logger.info(msg)
 			return ActionResult(extracted_content=msg, include_in_memory=True)
-		
-		'''@self.registry.action(
-			'Click to download PDF', param_model=ClickElementAction, requires_browser=True
-		)
-		async def click_download_pdf(params:ClickElementAction, browser:BrowserContext):
-			page = await browser.get_current_page()
-			async with page.expect_download() as download_info:
-				await click_element(params, browser)
-			download = await download_info.value
-			filename = download.suggested_filename
-			await download.save_as(filename)'''
 
 		# Element Interaction Actions
 		@self.registry.action(
