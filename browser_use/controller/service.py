@@ -76,7 +76,7 @@ class Controller:
 			logger.info(msg)
 			return ActionResult(extracted_content=msg, include_in_memory=True)
 		
-		@self.registry.action(
+		'''@self.registry.action(
 			'Click to download PDF', param_model=ClickElementAction, requires_browser=True
 		)
 		async def click_download_pdf(params:ClickElementAction, browser:BrowserContext):
@@ -85,7 +85,7 @@ class Controller:
 				await click_element(params, browser)
 			download = await download_info.value
 			filename = download.suggested_filename
-			await download.save_as(filename)
+			await download.save_as(filename)'''
 
 		# Element Interaction Actions
 		@self.registry.action(
