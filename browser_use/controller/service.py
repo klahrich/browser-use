@@ -122,7 +122,7 @@ class Controller:
 			param_model=InputTextAction,
 			requires_browser=True,
 		)
-		async def input_text(params: InputTextAction, browser: BrowserContext):
+		async def input_text_af(params: InputTextAction, browser: BrowserContext):
 			session = await browser.get_session()
 			state = session.cached_state
 
