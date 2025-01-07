@@ -186,7 +186,7 @@ class Controller:
 			logger.info(msg)
 			return ActionResult(extracted_content=msg)
 
-		# TODO: This needs to be overwritten in order to have contorll over exiting the appliction
+		# TODO: This needs to be overwritten in order to have contorl over exiting the application
 		# Leaving it here as an example, but need to implement unique one in your controller
 
 		'''@self.registry.action('Complete task', param_model=DoneAction)
