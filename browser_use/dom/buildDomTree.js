@@ -404,7 +404,7 @@
         }
 
         // Handle iframes
-        if (node.tagName && (node.tagName.toLowerCase() === 'iframe')) {
+        if (node.tagName && (node.tagName.toLowerCase() == 'iframe')) {
             try {
                 const iframeDoc = node.contentDocument || node.contentWindow.document;
                 if (iframeDoc) {
