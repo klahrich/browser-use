@@ -152,11 +152,11 @@ class Agent:
 		if save_conversation_path:
 			logger.info(f'Saving conversation to {save_conversation_path}')
 
-	def update_lt_memory(self, key:str, description:str, value):
-		self.message_manager.update_lt_memory(key, description, value)
+	# def update_lt_memory(self, key:str, description:str, value):
+	# 	self.message_manager.update_lt_memory(key, description, value)
 
-	def append_lt_memory(self, key:str, description:str, value):
-		self.message_manager.append_lt_memory(key, description ,value)
+	# def append_lt_memory(self, key:str, description:str, value):
+	# 	self.message_manager.append_lt_memory(key, description ,value)
 
 	def _setup_action_models(self) -> None:
 		"""Setup dynamic action models from controller's registry"""
