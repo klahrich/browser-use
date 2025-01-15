@@ -37,21 +37,6 @@ class SystemPrompt:
      ]
    }
 
-2. ACTIONS: You can specify multiple actions to be executed in sequence. 
-
-   Common action sequences:
-   - Form filling: [
-       {"input_text": {"index": 1, "text": "username"}},
-       {"input_text": {"index": 2, "text": "password"}},
-       {"click_element": {"index": 3}}
-     ]
-   - Navigation and extraction: [
-       {"open_new_tab": {}},
-       {"go_to_url": {"url": "https://example.com"}},
-       {"extract_page_content": {}}
-     ]
-
-
 3. ELEMENT INTERACTION:
    - Only use indexes that exist in the provided element list
    - Each element has a unique index number (e.g., "33[:]<button>")
