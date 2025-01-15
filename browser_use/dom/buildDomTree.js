@@ -168,7 +168,9 @@
             ((tagName == 'option') && (element.parentElement.tagName.toLowerCase()=='select')) ||
             (tabIndex !== null && tabIndex !== '-1') ||
             element.getAttribute('data-action') === 'a-dropdown-select' ||
-            element.getAttribute('data-action') === 'a-dropdown-button';
+            element.getAttribute('data-action') === 'a-dropdown-button' ||
+            ((tagName == 'div') && element.className.toLowerCase().includes('clickable')) // hack specifically for Teco, hopefully also will solve others
+            ;
 
         if (hasInteractiveRole) return true;
 
@@ -404,7 +406,7 @@
         }
 
         // Handle iframes
-        if (node.tagName === 'IFRAME') {
+        if (node.tagName && (node.tagName.toLowerCase() == 'iframe')) {
             try {
                 const iframeDoc = node.contentDocument || node.contentWindow.document;
                 if (iframeDoc) {
