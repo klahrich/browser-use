@@ -92,7 +92,7 @@ class Agent:
 		self.agent_id = str(uuid.uuid4())  # unique identifier for the agent
 
 		self.task = task
-		self.use_vision = use_vision
+		self.use_vision = False
 		self.llm = llm
 		self.save_conversation_path = save_conversation_path
 		self._last_result = None
