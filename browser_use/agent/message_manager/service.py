@@ -88,6 +88,31 @@ class MessageManager:
 		task_message = HumanMessage(content=f'Your task is: {task}')
 		self._add_message_with_tokens(task_message)
 
+		# self.lt_memory = {}
+
+	# def update_lt_memory(self, key:str, description:str, value):
+	# 	self.lt_memory[key] = {
+	# 		'description': description,
+	# 		'value': value
+	# 	}
+
+	# def append_lt_memory(self, key:str, description:str, value):
+	# 	if key in self.lt_memory:
+	# 		assert isinstance(self.lt_memory[key]['value'], list)
+	# 		self.lt_memory[key]['value'].append(value)
+	# 	else:
+	# 		self.lt_memory[key] = {
+	# 			'description': description,
+	# 			'value': [value]
+	# 		}
+
+	# def get_lt_memory(self) -> BaseMessage|None:
+	# 	if len(self.lt_memory) > 0:
+	# 		return HumanMessage(
+	# 			content = "\n".join([f"{d['description']}: {d['value']}" for d in self.lt_memory.values()])
+	# 		)
+	# 	return None
+
 	def add_state_message(
 		self,
 		state: BrowserState,
@@ -154,6 +179,27 @@ class MessageManager:
 		"""Get current message list, potentially trimmed to max tokens"""
 		self.cut_messages()
 		return [m.message for m in self.history.messages]
+		# lt_memory = self.get_lt_memory()
+		# if lt_memory is None:
+		# 	return [m.message for m in self.history.messages]
+		# else:
+		# 	return [lt_memory] + [m.message for m in self.history.messages]
+		
+	@staticmethod
+	def print_messages(messages:list[BaseMessage]):
+		for i, msg in enumerate(messages):
+			print(f"Message #{i}\n")
+			if isinstance(msg.content, list):
+				text = ''
+				for item in msg.content:
+					if isinstance(item, dict) and ('text' in item):
+						text += item['text']
+					elif isinstance(item, str):
+						text += item
+					text += '\n'
+				print(text)
+			else:
+				print(msg.content)
 
 	def cut_messages(self):
 		"""Get current message list, potentially trimmed to max tokens"""

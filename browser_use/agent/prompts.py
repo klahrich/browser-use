@@ -13,7 +13,8 @@ class SystemPrompt:
 	):
 		self.default_action_description = action_description
 		self.current_date = current_date
-		self.max_actions_per_step = max_actions_per_step
+		#self.max_actions_per_step = max_actions_per_step
+		self.max_actions_per_step = 1
 
 	def important_rules(self) -> str:
 		"""
@@ -36,21 +37,6 @@ class SystemPrompt:
        // ... more actions in sequence
      ]
    }
-
-2. ACTIONS: You can specify multiple actions to be executed in sequence. 
-
-   Common action sequences:
-   - Form filling: [
-       {"input_text": {"index": 1, "text": "username"}},
-       {"input_text": {"index": 2, "text": "password"}},
-       {"click_element": {"index": 3}}
-     ]
-   - Navigation and extraction: [
-       {"open_new_tab": {}},
-       {"go_to_url": {"url": "https://example.com"}},
-       {"extract_page_content": {}}
-     ]
-
 
 3. ELEMENT INTERACTION:
    - Only use indexes that exist in the provided element list
@@ -162,6 +148,7 @@ class AgentMessagePrompt:
 		self.step_info = step_info
 
 	def get_user_message(self) -> HumanMessage:
+		elements_str = self.state.element_tree.clickable_elements_to_string(include_attributes=self.include_attributes)
 		if self.step_info:
 			step_info_description = (
 				f'Current step: {self.step_info.step_number + 1}/{self.step_info.max_steps}'
@@ -175,8 +162,12 @@ Current url: {self.state.url}
 Available tabs:
 {self.state.tabs}
 Interactive elements:
-{self.state.element_tree.clickable_elements_to_string(include_attributes=self.include_attributes)}
+{elements_str}
         """
+
+		# u = input("Print state description?")
+		# if u.lower() == 'y':
+		# 	print(elements_str)
 
 		if self.result:
 			for i, result in enumerate(self.result):

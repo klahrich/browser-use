@@ -41,7 +41,7 @@ class BrowserConfig:
 
 		chrome_instance_path: None
 			Path to a Chrome instance to use to connect to your normal browser
-			e.g. '/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome'
+			e.g. '/Applications/Google/Chrome.app/Contents/MacOS/Google/Chrome'
 	"""
 
 	headless: bool = False
@@ -202,11 +202,12 @@ class Browser:
 	def __del__(self):
 		"""Async cleanup when object is destroyed"""
 		try:
-			if self.playwright_browser or self.playwright:
+			pass
+			'''if self.playwright_browser or self.playwright:
 				loop = asyncio.get_running_loop()
 				if loop.is_running():
 					loop.create_task(self.close())
 				else:
-					asyncio.run(self.close())
+					asyncio.run(self.close())'''
 		except Exception as e:
 			logger.debug(f'Failed to cleanup browser in destructor: {e}')

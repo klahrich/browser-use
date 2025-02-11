@@ -87,6 +87,7 @@ class Agent:
 		],
 		max_error_length: int = 400,
 		max_actions_per_step: int = 10,
+		verbose:int = 0,
 		tool_call_in_content: bool = True,
 	):
 		self.agent_id = str(uuid.uuid4())  # unique identifier for the agent
@@ -101,6 +102,7 @@ class Agent:
 		self.generate_gif = generate_gif
 		# Controller setup
 		self.controller = controller
+		self.controller.set_agent(self)
 		self.max_actions_per_step = max_actions_per_step
 
 		# Browser setup
@@ -125,7 +127,7 @@ class Agent:
 		self.system_prompt_class = system_prompt_class
 
 		# Telemetry setup
-		self.telemetry = ProductTelemetry()
+		# self.telemetry = ProductTelemetry()
 
 		# Action and output models setup
 		self._setup_action_models()
@@ -152,8 +154,16 @@ class Agent:
 		self.retry_delay = retry_delay
 		self.validate_output = validate_output
 
+		self.verbose = verbose
+
 		if save_conversation_path:
 			logger.info(f'Saving conversation to {save_conversation_path}')
+
+	# def update_lt_memory(self, key:str, description:str, value):
+	# 	self.message_manager.update_lt_memory(key, description, value)
+
+	# def append_lt_memory(self, key:str, description:str, value):
+	# 	self.message_manager.append_lt_memory(key, description ,value)
 
 	def _setup_action_models(self) -> None:
 		"""Setup dynamic action models from controller's registry"""
@@ -174,6 +184,10 @@ class Agent:
 			state = await self.browser_context.get_state(use_vision=self.use_vision)
 			self.message_manager.add_state_message(state, self._last_result, step_info)
 			input_messages = self.message_manager.get_messages()
+			if self.verbose >= 2:
+				u = input('Print messages?')
+				if u.lower() == 'y':
+					MessageManager.print_messages(input_messages)
 			try:
 				model_output = await self.get_next_action(input_messages)
 				self._save_conversation(input_messages, model_output)
@@ -183,6 +197,12 @@ class Agent:
 				# model call failed, remove last state message from history
 				self.message_manager._remove_last_state_message()
 				raise e
+
+
+			model_output = await self.get_next_action(input_messages)
+			self._save_conversation(input_messages, model_output)
+			self.message_manager._remove_last_state_message()  # we dont want the whole state in the chat history
+			self.message_manager.add_model_output(model_output)
 
 			result: list[ActionResult] = await self.controller.multi_act(
 				model_output.action, self.browser_context
@@ -201,14 +221,14 @@ class Agent:
 		finally:
 			if not result:
 				return
-			for r in result:
-				if r.error:
-					self.telemetry.capture(
-						AgentStepErrorTelemetryEvent(
-							agent_id=self.agent_id,
-							error=r.error,
-						)
-					)
+			# for r in result:
+			# 	if r.error:
+			# 		self.telemetry.capture(
+			# 			AgentStepErrorTelemetryEvent(
+			# 				agent_id=self.agent_id,
+			# 				error=r.error,
+			# 			)
+			# 		)
 			if state:
 				self._make_history_item(model_output, state, result)
 
@@ -341,17 +361,10 @@ class Agent:
 		f.write(' RESPONSE\n')
 		f.write(json.dumps(json.loads(response.model_dump_json(exclude_unset=True)), indent=2))
 
-	async def run(self, max_steps: int = 100) -> AgentHistoryList:
+	async def run(self, max_steps: int = 100, close_after_completing=True) -> AgentHistoryList:
 		"""Execute the task with maximum number of steps"""
 		try:
 			logger.info(f'🚀 Starting task: {self.task}')
-
-			self.telemetry.capture(
-				AgentRunTelemetryEvent(
-					agent_id=self.agent_id,
-					task=self.task,
-				)
-			)
 
 			for step in range(max_steps):
 				if self._too_many_failures():
@@ -374,18 +387,18 @@ class Agent:
 			return self.history
 
 		finally:
-			self.telemetry.capture(
-				AgentEndTelemetryEvent(
-					agent_id=self.agent_id,
-					task=self.task,
-					success=self.history.is_done(),
-					steps=len(self.history.history),
-				)
-			)
-			if not self.injected_browser_context:
+			# self.telemetry.capture(
+			# 	AgentEndTelemetryEvent(
+			# 		agent_id=self.agent_id,
+			# 		task=self.task,
+			# 		success=self.history.is_done(),
+			# 		steps=len(self.history.history),
+			# 	)
+			# )
+			if not self.injected_browser_context and close_after_completing:
 				await self.browser_context.close()
 
-			if not self.injected_browser and self.browser:
+			if not self.injected_browser and self.browser and close_after_completing:
 				await self.browser.close()
 
 			if self.generate_gif:

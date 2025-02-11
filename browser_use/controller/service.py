@@ -3,7 +3,6 @@ import logging
 
 from main_content_extractor import MainContentExtractor
 from playwright.async_api import Page
-
 from browser_use.agent.views import ActionModel, ActionResult
 from browser_use.browser.context import BrowserContext
 from browser_use.controller.registry.service import Registry
@@ -30,24 +29,27 @@ class Controller:
 	):
 		self.registry = Registry()
 		self._register_default_actions()
+		self.vars_dict = {}
+
+	def set_agent(self, agent):
+		self.agent = agent
+
+	def update_vars(self, d):
+		self.vars_dict.update(d)
+
+	def get_var(self, k):
+		return self.vars_dict[k]
+
+	# def update_lt_memory(self, key:str, description:str, value):
+	# 	self.agent.update_lt_memory(key, description, value)
+
+	# def append_lt_memory(self, key:str, description:str, value):
+	# 	self.agent.append_lt_memory(key, description, value)
 
 	def _register_default_actions(self):
 		"""Register all default browser actions"""
 
 		# Basic Navigation Actions
-		# @self.registry.action(
-		# 	'Search Google in the current tab',
-		# 	param_model=SearchGoogleAction,
-		# 	requires_browser=True,
-		# )
-		# async def search_google(params: SearchGoogleAction, browser: BrowserContext):
-		# 	page = await browser.get_current_page()
-		# 	await page.goto(f'https://www.google.com/search?q={params.query}&udm=14')
-		# 	await page.wait_for_load_state()
-		# 	msg = f'🔍  Searched for "{params.query}" in Google'
-		# 	logger.info(msg)
-		# 	return ActionResult(extracted_content=msg, include_in_memory=True)
-
 		@self.registry.action(
 			'Navigate to URL in the current tab', param_model=GoToUrlAction, requires_browser=True
 		)
@@ -109,6 +111,12 @@ class Controller:
 				)
 				return ActionResult(error=str(e))
 
+		@self.registry.action('Wait for Load', requires_browser=True)
+		async def wait_for_load(num_seconds: int) -> str:
+			await asyncio.sleep(num_seconds)
+			return ActionResult(is_done=False,
+								extracted_content=f"Waited for {num_seconds} for page to load, see if it is now loaded.")
+
 		@self.registry.action(
 			'Input text into a input interactive element',
 			param_model=InputTextAction,
@@ -166,10 +174,6 @@ class Controller:
 			msg = f'📄  Extracted page content\n: {content}\n'
 			logger.info(msg)
 			return ActionResult(extracted_content=msg)
-
-		@self.registry.action('Complete task', param_model=DoneAction)
-		async def done(params: DoneAction):
-			return ActionResult(is_done=True, extracted_content=params.text)
 
 		@self.registry.action(
 			'Scroll down the page by pixel amount - if no amount is specified, scroll down one page',

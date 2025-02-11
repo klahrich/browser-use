@@ -106,14 +106,17 @@ class BrowserSession:
 class BrowserContext:
 	def __init__(
 		self,
-		browser: 'Browser',
+		#browser: 'Browser',
+		context,
 		config: BrowserContextConfig = BrowserContextConfig(),
 	):
 		self.context_id = str(uuid.uuid4())
 		logger.debug(f'Initializing new browser context with id: {self.context_id}')
 
 		self.config = config
-		self.browser = browser
+		# self.browser = browser
+		self.context = context.context
+		self.playwright_service = context
 
 		# Initialize these as None - they'll be set up when needed
 		self.session: BrowserSession | None = None
@@ -147,7 +150,8 @@ class BrowserContext:
 					logger.debug(f'Failed to stop tracing: {e}')
 
 			try:
-				await self.session.context.close()
+				pass
+				#await self.session.context.close()
 			except Exception as e:
 				logger.debug(f'Failed to close context: {e}')
 		finally:
@@ -160,7 +164,8 @@ class BrowserContext:
 			try:
 				# Use sync Playwright method for force cleanup
 				if hasattr(self.session.context, '_impl_obj'):
-					asyncio.run(self.session.context._impl_obj.close())
+					#asyncio.run(self.session.context._impl_obj.close())
+					pass
 				self.session = None
 			except Exception as e:
 				logger.warning(f'Failed to force close browser context: {e}')
@@ -169,12 +174,15 @@ class BrowserContext:
 		"""Initialize the browser session"""
 		logger.debug('Initializing browser context')
 
-		playwright_browser = await self.browser.get_playwright_browser()
+		#playwright_browser = await self.browser.get_playwright_browser()
+		#context = await self._create_context(playwright_browser)
+		context = self.context
 
-		context = await self._create_context(playwright_browser)
-		self._add_new_page_listener(context)
-		page = await context.new_page()
-
+		try:
+			page = self.playwright_service.page
+		except AttributeError:
+			page = await context.new_page()
+      
 		# Instead of calling _update_state(), create an empty initial state
 		initial_state = BrowserState(
 			element_tree=DOMElementNode(
@@ -468,7 +476,9 @@ class BrowserContext:
 
 		# Wait for page load
 		try:
-			await self._wait_for_stable_network()
+			#await self._wait_for_stable_network()
+			page = await self.get_current_page()
+			await page.wait_for_load_state('domcontentloaded')
 		except Exception:
 			logger.warning('Page load failed, continuing...')
 			pass
@@ -831,7 +841,7 @@ class BrowserContext:
 			if element is None:
 				raise Exception(f'Element: {repr(element_node)} not found')
 
-			await element.scroll_into_view_if_needed(timeout=2500)
+			await element.scroll_into_view_if_needed(timeout=10000)
 			await element.fill('')
 			await element.type(text)
 			await page.wait_for_load_state()
@@ -856,7 +866,7 @@ class BrowserContext:
 			# await element.scroll_into_view_if_needed()
 
 			try:
-				await element.click(timeout=1500)
+				await element.click(timeout=10000)
 				await page.wait_for_load_state()
 			except Exception:
 				try:

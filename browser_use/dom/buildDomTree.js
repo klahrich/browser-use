@@ -163,6 +163,9 @@
         const hasInteractiveRole = interactiveElements.has(tagName) ||
             interactiveRoles.has(role) ||
             interactiveRoles.has(ariaRole) ||
+            tabIndex === '0' ||
+            // handle options within a select
+            ((tagName == 'option') && (element.parentElement.tagName.toLowerCase()=='select')) ||
             (tabIndex !== null && tabIndex !== '-1') ||
             element.getAttribute('data-action') === 'a-dropdown-select' ||
             element.getAttribute('data-action') === 'a-dropdown-button' ||
@@ -403,7 +406,7 @@
         }
 
         // Handle iframes
-        if (node.tagName === 'IFRAME') {
+        if (node.tagName && (node.tagName.toLowerCase() == 'iframe')) {
             try {
                 const iframeDoc = node.contentDocument || node.contentWindow.document;
                 if (iframeDoc) {
