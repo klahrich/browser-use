@@ -9,7 +9,7 @@ from browser_use.browser.views import BrowserState
 
 class SystemPrompt:
 	def __init__(
-		self, action_description: str, current_date: datetime, max_actions_per_step: int = 10
+		self, action_description: str, current_date: datetime, max_actions_per_step: int = 1
 	):
 		self.default_action_description = action_description
 		self.current_date = current_date
