@@ -13,8 +13,7 @@ class SystemPrompt:
 	):
 		self.default_action_description = action_description
 		self.current_date = current_date
-		#self.max_actions_per_step = max_actions_per_step
-		self.max_actions_per_step = 1
+		self.max_actions_per_step = max_actions_per_step
 
 	def important_rules(self) -> str:
 		"""
