@@ -338,11 +338,11 @@
         // Special case for text nodes
         if (node.nodeType === Node.TEXT_NODE) {
             const textContent = node.textContent.trim();
-            if (textContent && isTextNodeVisible(node)) {
+            if (textContent) {
                 return {
                     type: "TEXT_NODE",
                     text: textContent,
-                    isVisible: true,
+                    isVisible: isTextNodeVisible(node),
                 };
             }
             return null;
@@ -379,7 +379,7 @@
             nodeData.isTopElement = isTop;
 
             // Highlight if element meets all criteria and highlighting is enabled
-            if (isInteractive && isVisible && isTop) {
+            if (isInteractive && isTop) {
                 nodeData.highlightIndex = highlightIndex++;
                 if (doHighlightElements) {
                     highlightElement(node, nodeData.highlightIndex, parentIframe);
