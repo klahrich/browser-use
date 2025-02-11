@@ -111,6 +111,12 @@ class Controller:
 				)
 				return ActionResult(error=str(e))
 
+		@self.registry.action('Wait for Load', requires_browser=True)
+		async def wait_for_load(num_seconds: int) -> str:
+			await asyncio.sleep(num_seconds)
+			return ActionResult(is_done=False,
+								extracted_content=f"Waited for {num_seconds} for page to load, see if it is now loaded.")
+
 		@self.registry.action(
 			'Input text into a input interactive element',
 			param_model=InputTextAction,
