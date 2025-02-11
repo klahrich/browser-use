@@ -51,19 +51,6 @@ class Controller:
 
 		# Basic Navigation Actions
 		@self.registry.action(
-			'Search Google in the current tab',
-			param_model=SearchGoogleAction,
-			requires_browser=True,
-		)
-		async def search_google(params: SearchGoogleAction, browser: BrowserContext):
-			page = await browser.get_current_page()
-			await page.goto(f'https://www.google.com/search?q={params.query}')
-			await page.wait_for_load_state()
-			msg = f'🔍  Searched for "{params.query}" in Google'
-			logger.info(msg)
-			return ActionResult(extracted_content=msg, include_in_memory=True)
-
-		@self.registry.action(
 			'Navigate to URL in the current tab', param_model=GoToUrlAction, requires_browser=True
 		)
 		async def go_to_url(params: GoToUrlAction, browser: BrowserContext):
