@@ -474,6 +474,7 @@ class Controller:
 		"""
 		return self.registry.action(description, **kwargs)
 
+'''
 	@time_execution_async('--multi-act')
 	async def multi_act(
 		self, actions: list[ActionModel], browser_context: BrowserContext
@@ -529,3 +530,4 @@ class Controller:
 			return ActionResult()
 		except Exception as e:
 			raise e
+'''
