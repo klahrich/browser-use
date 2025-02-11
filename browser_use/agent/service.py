@@ -365,13 +365,6 @@ class Agent:
 		try:
 			logger.info(f'🚀 Starting task: {self.task}')
 
-			# self.telemetry.capture(
-			# 	AgentRunTelemetryEvent(
-			# 		agent_id=self.agent_id,
-			# 		task=self.task,
-			# 	)
-			# )
-
 			for step in range(max_steps):
 				if self._too_many_failures():
 					break
