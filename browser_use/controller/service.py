@@ -3,7 +3,6 @@ import logging
 
 from main_content_extractor import MainContentExtractor
 from playwright.async_api import Page
-from browser_use import DomService
 from browser_use.agent.views import ActionModel, ActionResult
 from browser_use.browser.context import BrowserContext
 from browser_use.controller.registry.service import Registry
@@ -114,6 +113,8 @@ class Controller:
 
 		@self.registry.action("Get all available selectors from page", requires_browser=True)
 		async def get_interactable_selectors(browser: BrowserContext):
+			from browser_use import DomService
+
 			page = await browser.get_current_page()
 			dom_service = DomService(page)
 			content = str(await dom_service.get_clickable_elements())
