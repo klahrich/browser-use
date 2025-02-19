@@ -379,7 +379,7 @@
             nodeData.isTopElement = isTop;
 
             // Highlight if element meets all criteria and highlighting is enabled
-            if (isInteractive && isVisible && isTop) {
+            if (isInteractive && isVisible) {
                 nodeData.highlightIndex = highlightIndex++;
                 if (doHighlightElements) {
                     highlightElement(node, nodeData.highlightIndex, parentIframe);
