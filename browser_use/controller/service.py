@@ -3,6 +3,7 @@ import logging
 
 from main_content_extractor import MainContentExtractor
 from playwright.async_api import Page
+from browser_use import DomService
 from browser_use.agent.views import ActionModel, ActionResult
 from browser_use.browser.context import BrowserContext
 from browser_use.controller.registry.service import Registry
@@ -110,6 +111,16 @@ class Controller:
 					f'Element no longer available with index {params.index} - most likely the page changed'
 				)
 				return ActionResult(error=str(e))
+
+		@self.registry.action("Get all available selectors from page", requires_browser=True)
+		async def get_interactable_selectors(browser: BrowserContext):
+			page = await browser.get_current_page()
+			dom_service = DomService(page)
+			content = str(await dom_service.get_clickable_elements())
+
+			msg = f'📄  Interactable Elements: \n: {content}\n'
+			logger.info(msg)
+			return ActionResult(extracted_content=msg)
 
 		@self.registry.action('Wait for Load', requires_browser=True)
 		async def wait_for_load(num_seconds: int) -> str:
