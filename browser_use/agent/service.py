@@ -53,6 +53,8 @@ from browser_use.utils import time_execution_async, time_execution_sync
 load_dotenv()
 logger = logging.getLogger(__name__)
 
+logging.getLogger("requests").setLevel(logging.WARNING)
+
 
 def log_response(response: AgentOutput) -> None:
 	"""Utility function to log the model's response."""
@@ -207,6 +209,7 @@ class Agent(Generic[Context]):
 
 		# Telemetry
 		self.telemetry = ProductTelemetry()
+		self.telemetry.debug_logging = False
 
 		if self.settings.save_conversation_path:
 			logger.info(f'Saving conversation to {self.settings.save_conversation_path}')
@@ -550,15 +553,15 @@ class Agent(Generic[Context]):
 
 			return self.state.history
 		finally:
-			# self.telemetry.capture(
-			# 	AgentEndTelemetryEvent(
-			# 		agent_id=self.state.agent_id,
-			# 		success=self.state.history.is_done(),
-			# 		steps=self.state.n_steps,
-			# 		max_steps_reached=self.state.n_steps >= max_steps,
-			# 		errors=self.state.history.errors(),
-			# 	)
-			# )
+			self.telemetry.capture(
+				AgentEndTelemetryEvent(
+					agent_id=self.state.agent_id,
+					success=self.state.history.is_done(),
+					steps=self.state.n_steps,
+					max_steps_reached=self.state.n_steps >= max_steps,
+					errors=self.state.history.errors(),
+				)
+			)
 
 			if not self.injected_browser_context:
 				await self.browser_context.close()
