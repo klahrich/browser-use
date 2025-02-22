@@ -155,6 +155,7 @@ class BrowserContext:
 	def __init__(
 		self,
 		browser: 'Browser',
+		context: PlaywrightBrowserContext,
 		config: BrowserContextConfig = BrowserContextConfig(),
 		state: Optional[BrowserContextState] = None,
 	):
@@ -168,6 +169,7 @@ class BrowserContext:
 
 		# Initialize these as None - they'll be set up when needed
 		self.session: BrowserSession | None = None
+		self.context = context
 
 	async def __aenter__(self):
 		"""Async context manager entry"""
@@ -235,8 +237,9 @@ class BrowserContext:
 		"""Initialize the browser session"""
 		logger.debug('Initializing browser context')
 
-		playwright_browser = await self.browser.get_playwright_browser()
-		context = await self._create_context(playwright_browser)
+		#playwright_browser = await self.browser.get_playwright_browser()
+		#context = await self._create_context(playwright_browser)
+		context = self.context
 		self._page_event_handler = None
 
 		# Get or create a page to use
