@@ -154,7 +154,7 @@ class BrowserContextState:
 class BrowserContext:
 	def __init__(
 		self,
-		browser: 'Browser',
+		#browser: 'Browser',
 		context: PlaywrightBrowserContext,
 		config: BrowserContextConfig = BrowserContextConfig(),
 		state: Optional[BrowserContextState] = None,
@@ -163,7 +163,7 @@ class BrowserContext:
 		logger.debug(f'Initializing new browser context with id: {self.context_id}')
 
 		self.config = config
-		self.browser = browser
+		#self.browser = browser
 
 		self.state = state or BrowserContextState()
 
@@ -251,18 +251,18 @@ class BrowserContext:
 		)
 
 		active_page = None
-		if self.browser.config.cdp_url:
-			# If we have a saved target ID, try to find and activate it
-			if self.state.target_id:
-				targets = await self._get_cdp_targets()
-				for target in targets:
-					if target['targetId'] == self.state.target_id:
-						# Find matching page by URL
-						for page in pages:
-							if page.url == target['url']:
-								active_page = page
-								break
-						break
+		# if self.browser.config.cdp_url:
+		# 	# If we have a saved target ID, try to find and activate it
+		# 	if self.state.target_id:
+		# 		targets = await self._get_cdp_targets()
+		# 		for target in targets:
+		# 			if target['targetId'] == self.state.target_id:
+		# 				# Find matching page by URL
+		# 				for page in pages:
+		# 					if page.url == target['url']:
+		# 						active_page = page
+		# 						break
+		# 				break
 
 		# If no target ID or couldn't find it, use existing page or create new
 		if not active_page:
@@ -274,12 +274,12 @@ class BrowserContext:
 				logger.debug('Created new page')
 
 			# Get target ID for the active page
-			if self.browser.config.cdp_url:
-				targets = await self._get_cdp_targets()
-				for target in targets:
-					if target['url'] == active_page.url:
-						self.state.target_id = target['targetId']
-						break
+			# if self.browser.config.cdp_url:
+			# 	targets = await self._get_cdp_targets()
+			# 	for target in targets:
+			# 		if target['url'] == active_page.url:
+			# 			self.state.target_id = target['targetId']
+			# 			break
 
 		# Bring page to front
 		await active_page.bring_to_front()
@@ -289,8 +289,8 @@ class BrowserContext:
 
 	def _add_new_page_listener(self, context: PlaywrightBrowserContext):
 		async def on_page(page: Page):
-			if self.browser.config.cdp_url:
-				await page.reload()  # Reload the page to avoid timeout errors
+			# if self.browser.config.cdp_url:
+			# 	await page.reload()  # Reload the page to avoid timeout errors
 			await page.wait_for_load_state()
 			logger.debug(f'New page opened: {page.url}')
 			if self.session is not None:
@@ -310,26 +310,26 @@ class BrowserContext:
 		session = await self.get_session()
 		return await self._get_current_page(session)
 
-	async def _create_context(self, browser: PlaywrightBrowser):
-		"""Creates a new browser context with anti-detection measures and loads cookies if available."""
-		if self.browser.config.cdp_url and len(browser.contexts) > 0:
-			context = browser.contexts[0]
-		elif self.browser.config.chrome_instance_path and len(browser.contexts) > 0:
-			# Connect to existing Chrome instance instead of creating new one
-			context = browser.contexts[0]
-		else:
-			# Original code for creating new context
-			context = await browser.new_context(
-				viewport=self.config.browser_window_size,
-				no_viewport=False,
-				user_agent=self.config.user_agent,
-				java_script_enabled=True,
-				bypass_csp=self.config.disable_security,
-				ignore_https_errors=self.config.disable_security,
-				record_video_dir=self.config.save_recording_path,
-				record_video_size=self.config.browser_window_size,
-				locale=self.config.locale,
-			)
+	# async def _create_context(self, browser: PlaywrightBrowser):
+	# 	"""Creates a new browser context with anti-detection measures and loads cookies if available."""
+	# 	if self.browser.config.cdp_url and len(browser.contexts) > 0:
+	# 		context = browser.contexts[0]
+	# 	elif self.browser.config.chrome_instance_path and len(browser.contexts) > 0:
+	# 		# Connect to existing Chrome instance instead of creating new one
+	# 		context = browser.contexts[0]
+	# 	else:
+	# 		# Original code for creating new context
+	# 		context = await browser.new_context(
+	# 			viewport=self.config.browser_window_size,
+	# 			no_viewport=False,
+	# 			user_agent=self.config.user_agent,
+	# 			java_script_enabled=True,
+	# 			bypass_csp=self.config.disable_security,
+	# 			ignore_https_errors=self.config.disable_security,
+	# 			record_video_dir=self.config.save_recording_path,
+	# 			record_video_size=self.config.browser_window_size,
+	# 			locale=self.config.locale,
+	# 		)
 
 		if self.config.trace_path:
 			await context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -1118,12 +1118,12 @@ class BrowserContext:
 			raise BrowserError(f'Cannot switch to tab with non-allowed URL: {page.url}')
 
 		# Update target ID if using CDP
-		if self.browser.config.cdp_url:
-			targets = await self._get_cdp_targets()
-			for target in targets:
-				if target['url'] == page.url:
-					self.state.target_id = target['targetId']
-					break
+		# if self.browser.config.cdp_url:
+		# 	targets = await self._get_cdp_targets()
+		# 	for target in targets:
+		# 		if target['url'] == page.url:
+		# 			self.state.target_id = target['targetId']
+		# 			break
 
 		await page.bring_to_front()
 		await page.wait_for_load_state()
@@ -1143,12 +1143,12 @@ class BrowserContext:
 			await self._wait_for_page_and_frames_load(timeout_overwrite=1)
 
 		# Get target ID for new page if using CDP
-		if self.browser.config.cdp_url:
-			targets = await self._get_cdp_targets()
-			for target in targets:
-				if target['url'] == new_page.url:
-					self.state.target_id = target['targetId']
-					break
+		# if self.browser.config.cdp_url:
+		# 	targets = await self._get_cdp_targets()
+		# 	for target in targets:
+		# 		if target['url'] == new_page.url:
+		# 			self.state.target_id = target['targetId']
+		# 			break
 
 	# endregion
 
@@ -1157,13 +1157,13 @@ class BrowserContext:
 		pages = session.context.pages
 
 		# Try to find page by target ID if using CDP
-		if self.browser.config.cdp_url and self.state.target_id:
-			targets = await self._get_cdp_targets()
-			for target in targets:
-				if target['targetId'] == self.state.target_id:
-					for page in pages:
-						if page.url == target['url']:
-							return page
+		# if self.browser.config.cdp_url and self.state.target_id:
+		# 	targets = await self._get_cdp_targets()
+		# 	for target in targets:
+		# 		if target['targetId'] == self.state.target_id:
+		# 			for page in pages:
+		# 				if page.url == target['url']:
+		# 					return page
 
 		# Fallback to last page
 		return pages[-1] if pages else await session.context.new_page()
@@ -1262,8 +1262,8 @@ class BrowserContext:
 
 	async def _get_cdp_targets(self) -> list[dict]:
 		"""Get all CDP targets directly using CDP protocol"""
-		if not self.browser.config.cdp_url or not self.session:
-			return []
+		# if not self.browser.config.cdp_url or not self.session:
+		# 	return []
 
 		try:
 			pages = self.session.context.pages
