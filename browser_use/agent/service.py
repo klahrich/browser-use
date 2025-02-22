@@ -550,15 +550,15 @@ class Agent(Generic[Context]):
 
 			return self.state.history
 		finally:
-			self.telemetry.capture(
-				AgentEndTelemetryEvent(
-					agent_id=self.state.agent_id,
-					success=self.state.history.is_done(),
-					steps=self.state.n_steps,
-					max_steps_reached=self.state.n_steps >= max_steps,
-					errors=self.state.history.errors(),
-				)
-			)
+			# self.telemetry.capture(
+			# 	AgentEndTelemetryEvent(
+			# 		agent_id=self.state.agent_id,
+			# 		success=self.state.history.is_done(),
+			# 		steps=self.state.n_steps,
+			# 		max_steps_reached=self.state.n_steps >= max_steps,
+			# 		errors=self.state.history.errors(),
+			# 	)
+			# )
 
 			if not self.injected_browser_context:
 				await self.browser_context.close()
