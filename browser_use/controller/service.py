@@ -81,6 +81,36 @@ class Controller(Generic[Context]):
 			msg = '🔙  Navigated back'
 			logger.info(msg)
 			return ActionResult(extracted_content=msg, include_in_memory=True)
+		
+		@self.registry.action('Download PDF', param_model=ClickElementAction)
+		async def click_to_download_pdf(params: ClickElementAction, browser: BrowserContext):
+			session = await browser.get_session()
+
+			if params.index not in await browser.get_selector_map():
+				raise Exception(f'Element with index {params.index} does not exist - retry or use alternative actions')
+
+			element_node = await browser.get_dom_element_by_index(params.index)
+			initial_pages = len(session.context.pages)
+				
+			msg = None
+
+			try:
+				download_path = await browser._click_element_node(element_node)
+				if download_path:
+					msg = f'💾  Downloaded file to {download_path}'
+				else:
+					msg = f'🖱️  Clicked button with index {params.index}: {element_node.get_all_text_till_next_clickable_element(max_depth=2)}'
+
+				logger.info(msg)
+				if len(session.context.pages) > initial_pages:
+					new_tab_msg = 'New tab opened - switching to it'
+					msg += f' - {new_tab_msg}'
+					logger.info(new_tab_msg)
+					await browser.switch_to_tab(-1)
+				return ActionResult(extracted_content=msg)
+			except Exception as e:
+				logger.info(f'Element not clickable with index {params.index} - most likely the page changed')
+				return ActionResult(error=str(e))
 
 		# Element Interaction Actions
 		@self.registry.action('Click element', param_model=ClickElementAction)
