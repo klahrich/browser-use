@@ -511,7 +511,7 @@ class Agent(Generic[Context]):
 
 	# @observe(name='agent.run', ignore_output=True)
 	@time_execution_async('--run (agent)')
-	async def run(self, max_steps: int = 100) -> AgentHistoryList:
+	async def run(self, max_steps: int = 100, close_after_completing = True) -> AgentHistoryList:
 		"""Execute the task with maximum number of steps"""
 		try:
 			self._log_agent_run()
@@ -562,11 +562,10 @@ class Agent(Generic[Context]):
 					errors=self.state.history.errors(),
 				)
 			)
-
-			if not self.injected_browser_context:
+			if not self.injected_browser_context and close_after_completing:
 				await self.browser_context.close()
 
-			if not self.injected_browser and self.browser:
+			if not self.injected_browser and self.browser and close_after_completing:
 				await self.browser.close()
 
 			if self.settings.generate_gif:
