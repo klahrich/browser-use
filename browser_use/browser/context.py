@@ -243,7 +243,7 @@ class BrowserContext:
 		self._page_event_handler = None
 
 		# Get or create a page to use
-		pages = context.page
+		pages = context.pages
 
 		self.session = BrowserSession(
 			context=context,
