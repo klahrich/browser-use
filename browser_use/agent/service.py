@@ -563,12 +563,10 @@ class Agent(Generic[Context]):
 				)
 			)
 			if not self.injected_browser_context and close_after_completing:
-				#await self.browser_context.close()
-				pass
+				await self.browser_context.close()
 
 			if not self.injected_browser and self.browser and close_after_completing:
-				#await self.browser.close()
-				pass
+				await self.browser.close()
 
 			if self.settings.generate_gif:
 				output_path: str = 'agent_history.gif'
