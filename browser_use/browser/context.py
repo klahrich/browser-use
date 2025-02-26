@@ -243,7 +243,7 @@ class BrowserContext:
 		self._page_event_handler = None
 
 		# Get or create a page to use
-		pages = context.context.pages
+		pages = context.page
 
 		self.session = BrowserSession(
 			context=context,
@@ -265,13 +265,7 @@ class BrowserContext:
 		# 				break
 
 		# If no target ID or couldn't find it, use existing page or create new
-		if not active_page:
-			if pages:
-				active_page = pages[0]
-				logger.debug('Using existing page')
-			else:
-				active_page = await context.new_page()
-				logger.debug('Created new page')
+		active_page = pages
 
 			# Get target ID for the active page
 			# if self.browser.config.cdp_url:
