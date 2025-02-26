@@ -513,6 +513,7 @@ class Agent(Generic[Context]):
 	@time_execution_async('--run (agent)')
 	async def run(self, max_steps: int = 100, close_after_completing = False) -> AgentHistoryList:
 		"""Execute the task with maximum number of steps"""
+		print("Run Started")
 		try:
 			self._log_agent_run()
 
@@ -562,6 +563,7 @@ class Agent(Generic[Context]):
 					errors=self.state.history.errors(),
 				)
 			)
+			print("Closing stuff")
 			if not self.injected_browser_context and close_after_completing:
 				#await self.browser_context.close()
 				pass
