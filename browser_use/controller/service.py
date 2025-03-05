@@ -38,6 +38,9 @@ class Controller(Generic[Context]):
 		exclude_actions: list[str] = [],
 		output_model: Optional[Type[BaseModel]] = None,
 	):
+		self.last_element_index_clicked = None
+		self.__memory: str = ''
+
 		self.registry = Registry[Context](exclude_actions)
 
 		"""Register all default browser actions"""
@@ -82,7 +85,7 @@ class Controller(Generic[Context]):
 			logger.info(msg)
 			return ActionResult(extracted_content=msg, include_in_memory=True)
 		
-		@self.registry.action('Download PDF', param_model=ClickElementAction)
+		@self.registry.action('download_pdf', param_model=ClickElementAction)
 		async def click_to_download_pdf(params: ClickElementAction, browser: BrowserContext):
 			session = await browser.get_session()
 
@@ -107,10 +110,10 @@ class Controller(Generic[Context]):
 					msg += f' - {new_tab_msg}'
 					logger.info(new_tab_msg)
 					await browser.switch_to_tab(-1)
-				return ActionResult(extracted_content=msg)
+				return ActionResult(extracted_content=msg, is_done=True)
 			except Exception as e:
 				logger.info(f'Element not clickable with index {params.index} - most likely the page changed')
-				return ActionResult(error=str(e))
+				return ActionResult(error=str(e), is_done=True)
 
 		# Element Interaction Actions
 		@self.registry.action('Click element', param_model=ClickElementAction)
@@ -119,6 +122,8 @@ class Controller(Generic[Context]):
 
 			if params.index not in await browser.get_selector_map():
 				raise Exception(f'Element with index {params.index} does not exist - retry or use alternative actions')
+			
+			self.last_element_index_clicked = params.index
 
 			element_node = await browser.get_dom_element_by_index(params.index)
 			initial_pages = len(session.context.pages)
@@ -473,6 +478,13 @@ class Controller(Generic[Context]):
 				msg = f'Selection failed: {str(e)}'
 				logger.error(msg)
 				return ActionResult(error=msg, include_in_memory=True)
+			
+	@property
+	def memory(self):
+		return self.__memory
+		
+	def add_to_memory(self, content:str):
+		self.__memory += f"\n{content}"
 
 	# Register ---------------------------------------------------------------
 
