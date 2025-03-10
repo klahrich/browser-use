@@ -35,6 +35,8 @@ from browser_use.dom.service import DomService
 from browser_use.dom.views import DOMElementNode, SelectorMap
 from browser_use.utils import time_execution_async, time_execution_sync
 
+from pathlib import Path
+
 if TYPE_CHECKING:
 	from browser_use.browser.browser import Browser
 
@@ -158,6 +160,7 @@ class BrowserContext:
 		context: PlaywrightBrowserContext,
 		config: BrowserContextConfig = BrowserContextConfig(),
 		state: Optional[BrowserContextState] = None,
+		output_folder: str|None = None
 	):
 		self.context_id = str(uuid.uuid4())
 		logger.debug(f'Initializing new browser context with id: {self.context_id}')
@@ -170,6 +173,11 @@ class BrowserContext:
 		# Initialize these as None - they'll be set up when needed
 		self.session: BrowserSession | None = None
 		self.context = context
+
+		self.output_folder = output_folder
+		if self.output_folder is not None:
+			Path(self.output_folder).mkdir(parents=True, exist_ok=True)
+		self.screenshot_counter = 0
 
 	async def __aenter__(self):
 		"""Async context manager entry"""
@@ -747,10 +755,19 @@ class BrowserContext:
 		await page.bring_to_front()
 		await page.wait_for_load_state()
 
-		screenshot = await page.screenshot(
-			full_page=full_page,
-			animations='disabled',
-		)
+		if self.output_folder is None:
+			screenshot = await page.screenshot(
+				full_page=full_page,
+				animations='disabled',
+			)
+		else:
+			screenshot = await page.screenshot(
+				full_page=full_page,
+				animations='disabled',
+				path=str(Path(self.output_folder) / f"screenshot_{self.screenshot_counter}.png")
+			)
+			self.screenshot_counter += 1
+			
 
 		screenshot_b64 = base64.b64encode(screenshot).decode('utf-8')
 

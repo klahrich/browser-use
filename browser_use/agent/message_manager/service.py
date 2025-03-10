@@ -38,11 +38,13 @@ class MessageManager:
 		system_message: SystemMessage,
 		settings: MessageManagerSettings = MessageManagerSettings(),
 		state: MessageManagerState = MessageManagerState(),
+		output_folder: str|None = None
 	):
 		self.task = task
 		self.settings = settings
 		self.state = state
 		self.system_prompt = system_message
+		self.output_folder = output_folder
 
 		# Only initialize messages if state is empty
 		if len(self.state.history.messages) == 0:
@@ -136,6 +138,7 @@ class MessageManager:
 			result,
 			include_attributes=self.settings.include_attributes,
 			step_info=step_info,
+			output_folder=self.output_folder
 		).get_user_message(use_vision)
 		self._add_message_with_tokens(state_message)
 

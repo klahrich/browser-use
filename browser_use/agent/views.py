@@ -38,7 +38,7 @@ class AgentSettings(BaseModel):
 	max_input_tokens: int = 128000
 	validate_output: bool = False
 	message_context: Optional[str] = None
-	generate_gif: bool | str = False
+	generate_gif: str = ''
 	available_file_paths: Optional[list[str]] = None
 	include_attributes: list[str] = [
 		'title',
@@ -183,13 +183,28 @@ class AgentHistoryList(BaseModel):
 		"""Representation of the AgentHistoryList object"""
 		return self.__str__()
 
-	def save_to_file(self, filepath: str | Path) -> None:
+	def save_to_file(self, filepath: str | Path, exclude_screenshots:bool=False) -> None:
 		"""Save history to JSON file with proper serialization"""
 		try:
 			Path(filepath).parent.mkdir(parents=True, exist_ok=True)
 			data = self.model_dump()
+
+			hadj = data
+
+			if exclude_screenshots:
+				hadj = []
+				for h in data["history"]:
+					d = {k:v for k,v in h.items() if k != "state"}
+					if "state" in h.keys():
+						if isinstance(h["state"], dict):
+							d["state"] = {k:v for k,v in h["state"].items() if k != "screenshot"}
+						else:
+							d["state"] = h["state"]
+					hadj.append(d)
+				hadj = {"history": hadj}
+
 			with open(filepath, 'w', encoding='utf-8') as f:
-				json.dump(data, f, indent=2)
+				json.dump(hadj, f, indent=2)
 		except Exception as e:
 			raise e
 

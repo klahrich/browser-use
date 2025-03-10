@@ -104,7 +104,7 @@ class Agent(Generic[Context]):
 		max_input_tokens: int = 128000,
 		validate_output: bool = False,
 		message_context: Optional[str] = None,
-		generate_gif: bool | str = False,
+		generate_gif: str = '',
 		available_file_paths: Optional[list[str]] = None,
 		include_attributes: list[str] = [
 			'title',
@@ -127,7 +127,12 @@ class Agent(Generic[Context]):
 		injected_agent_state: Optional[AgentState] = None,
 		#
 		context: Context | None = None,
+		output_folder: str|None = None
 	):
+		self.output_folder = output_folder
+		if self.output_folder is not None:
+			Path(self.output_folder).mkdir(parents=True, exist_ok=True)
+
 		if page_extraction_llm is None:
 			page_extraction_llm = llm
 
@@ -170,6 +175,7 @@ class Agent(Generic[Context]):
 				available_file_paths=self.settings.available_file_paths,
 			),
 			state=self.state.message_manager_state,
+			output_folder=self.output_folder
 		)
 
 		# Core components
@@ -572,7 +578,10 @@ class Agent(Generic[Context]):
 			if self.settings.generate_gif:
 				output_path: str = 'agent_history.gif'
 				if isinstance(self.settings.generate_gif, str):
-					output_path = self.settings.generate_gif
+					if self.output_folder is not None:
+						output_path = str(Path(self.output_folder) / self.settings.generate_gif)
+					else:
+						output_path = self.settings.generate_gif
 
 				create_history_gif(task=self.task, history=self.state.history, output_path=output_path)
 
@@ -643,6 +652,7 @@ class Agent(Generic[Context]):
 				state=state,
 				result=self.state.last_result,
 				include_attributes=self.settings.include_attributes,
+				output_folder=self.output_folder
 			)
 			msg = [SystemMessage(content=system_msg), content.get_user_message(self.settings.use_vision)]
 		else:

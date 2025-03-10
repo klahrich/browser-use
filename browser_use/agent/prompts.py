@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from langchain_core.messages import HumanMessage, SystemMessage
+from pathlib import Path
 
 if TYPE_CHECKING:
 	from browser_use.agent.views import ActionResult, AgentStepInfo
@@ -162,11 +163,13 @@ class AgentMessagePrompt:
 		result: Optional[List['ActionResult']] = None,
 		include_attributes: list[str] = [],
 		step_info: Optional['AgentStepInfo'] = None,
+		output_folder: str|None = None
 	):
 		self.state = state
 		self.result = result
 		self.include_attributes = include_attributes
 		self.step_info = step_info
+		self.output_folder = output_folder
 
 	def get_user_message(self, use_vision: bool = True) -> HumanMessage:
 		elements_text = self.state.element_tree.clickable_elements_to_string(include_attributes=self.include_attributes)
@@ -217,6 +220,16 @@ Interactive elements from top layer of the current page inside the viewport:
 					# only use last line of error
 					error = result.error.split('\n')[-1]
 					state_description += f'\nAction error {i + 1}/{len(self.result)}: ...{error}'
+
+		if self.output_folder is not None:
+			output_path = str(Path(self.output_folder) / f"state_description.txt")
+		else:
+			output_path = f"state_description.txt"
+
+		with open(output_path, "a") as f:
+			f.write(state_description)
+			f.write('\n')
+			f.write('------')
 
 		if self.state.screenshot and use_vision == True:
 			# Format message for vision model
